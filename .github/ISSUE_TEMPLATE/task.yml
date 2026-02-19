@@ -1,0 +1,29 @@
+name: Task
+description: Track a documentation or alignment task
+title: "[Task]: "
+labels: ["task", "triage"]
+body:
+  - type: input
+    id: objective
+    attributes:
+      label: Objective
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Execution Steps
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Definition of Done
+    validations:
+      required: true
