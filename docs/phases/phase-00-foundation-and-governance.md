@@ -13,11 +13,12 @@ Establish repository structure, collaboration standards, and documentation basel
 ## Steps
 
 1. Create/update repositories: hub, app, deploy, infra.
-2. Define branch strategy (`main`, feature branches, PR-only merge).
+2. Define branch strategy (`main`, feature branches, PR-only merge) using the formal governance policy.
 3. Add protection rules for `main` (required reviews, status checks).
 4. Add `CODEOWNERS` to each repository.
 5. Define commit convention and pull request template.
 6. Create architecture overview in hub docs.
+7. Publish and align teams with `docs/governance/branching-and-ci-governance.md`.
 
 ## Deliverables
 
