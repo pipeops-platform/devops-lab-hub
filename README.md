@@ -23,6 +23,8 @@ Central documentation repository for the DevOps Hybrid Lab.
 ## Governance
 
 - [Backlog Governance — Labels and Milestones Standard](docs/governance/backlog-governance.md)
+- [Branching, Promotion, and CI Governance Policy](docs/governance/branching-and-ci-governance.md)
+- [GitHub Configuration Checklist (CLI-First)](docs/governance/github-configuration-checklist.md)
 
 ### Quick Links
 

@@ -1,6 +1,6 @@
 # Global ownership
-* @flaviopiccolo-boop
+* @pipeops-platform/reviewers
 
 # Hub documentation ownership
-/docs/ @flaviopiccolo-boop
-/README.md @flaviopiccolo-boop
+/docs/ @pipeops-platform/reviewers
+/README.md @pipeops-platform/reviewers
