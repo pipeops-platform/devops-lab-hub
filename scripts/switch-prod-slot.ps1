@@ -1,8 +1,11 @@
-[CmdletBinding(SupportsShouldProcess = $true)]
+[CmdletBinding(SupportsShouldProcess = $true, DefaultParameterSetName = "Status")]
 param(
-    [Parameter(Mandatory = $true)]
+    [Parameter(ParameterSetName = "Switch", Mandatory = $true)]
     [ValidateSet("blue", "green")]
     [string]$Target,
+
+    [Parameter(ParameterSetName = "Status")]
+    [switch]$Status,
 
     [string]$IngressClassName = "nginx",
     [string]$ProdHost = "devops-lab-app-prod.localtest.me"
@@ -22,8 +25,24 @@ function Warn([string]$message) {
     Write-Host "[WARN] $message" -ForegroundColor Yellow
 }
 
-$targetNamespace = if ($Target -eq "blue") { "devops-lab-app-prod-blue" } else { "devops-lab-app-prod-green" }
-$otherNamespace = if ($Target -eq "blue") { "devops-lab-app-prod-green" } else { "devops-lab-app-prod-blue" }
+function Get-HealthCode([string]$hostname) {
+    return (curl.exe -s -o NUL -w "%{http_code}" -H "Host: $hostname" http://127.0.0.1/health)
+}
+
+function Get-LiveOwner([string]$liveHost) {
+    return (kubectl get ingress -A -o jsonpath="{range .items[?(@.spec.rules[0].host=='$liveHost')]}{.metadata.namespace}{'/' }{.metadata.name}{'\n'}{end}").Trim()
+}
+
+function Get-ActiveSlot([string]$owner) {
+    if ($owner -match '^devops-lab-app-prod-blue/') { return 'blue' }
+    if ($owner -match '^devops-lab-app-prod-green/') { return 'green' }
+    return 'unknown'
+}
+
+$blueNamespace = "devops-lab-app-prod-blue"
+$greenNamespace = "devops-lab-app-prod-green"
+$targetNamespace = if ($Target -eq "blue") { $blueNamespace } elseif ($Target -eq "green") { $greenNamespace } else { "" }
+$otherNamespace = if ($Target -eq "blue") { $greenNamespace } elseif ($Target -eq "green") { $blueNamespace } else { "" }
 
 Step "Pre-checks"
 $requiredCommands = @("kubectl", "curl.exe")
@@ -33,13 +52,36 @@ foreach ($command in $requiredCommands) {
     }
 }
 
-kubectl get ns $targetNamespace | Out-Null
-kubectl get ns $otherNamespace | Out-Null
-Info "Namespaces found: $targetNamespace and $otherNamespace"
+kubectl get ns $blueNamespace | Out-Null
+kubectl get ns $greenNamespace | Out-Null
+Info "Namespaces found: $blueNamespace and $greenNamespace"
+
+if ($PSCmdlet.ParameterSetName -eq "Status") {
+    Step "Live slot status"
+    $owner = Get-LiveOwner -liveHost $ProdHost
+    $activeSlot = Get-ActiveSlot -owner $owner
+
+    if ([string]::IsNullOrWhiteSpace($owner)) {
+        Warn "No live ingress owner found for $ProdHost"
+    } else {
+        Info "Live host owner: $owner"
+    }
+
+    Write-Host "Active production slot: $activeSlot" -ForegroundColor Green
+    Write-Host "Live URL: http://$ProdHost"
+    Write-Host "Slot URLs: http://devops-lab-app-prod-blue.localtest.me and http://devops-lab-app-prod-green.localtest.me"
+
+    Step "Health checks"
+    $liveCode = Get-HealthCode -hostname $ProdHost
+    $blueCode = Get-HealthCode -hostname "devops-lab-app-prod-blue.localtest.me"
+    $greenCode = Get-HealthCode -hostname "devops-lab-app-prod-green.localtest.me"
+    Write-Host "- live=$liveCode blue=$blueCode green=$greenCode"
+    return
+}
 
 Step "Validate target slot health"
 $targetHost = "devops-lab-app-prod-$Target.localtest.me"
-$targetCode = curl.exe -s -o NUL -w "%{http_code}" -H "Host: $targetHost" http://127.0.0.1/health
+$targetCode = Get-HealthCode -hostname $targetHost
 if ($targetCode -ne "200") {
     throw "Target slot '$Target' is not healthy (HTTP $targetCode on $targetHost)."
 }
@@ -96,7 +138,7 @@ if ($PSCmdlet.ShouldProcess("$otherNamespace/devops-lab-app-live", "delete ingre
 Step "Validate live endpoint"
 $liveCode = "000"
 for ($i = 1; $i -le 10; $i++) {
-    $liveCode = curl.exe -s -o NUL -w "%{http_code}" -H "Host: $ProdHost" http://127.0.0.1/health
+    $liveCode = Get-HealthCode -hostname $ProdHost
     if ($liveCode -eq "200") {
         break
     }
@@ -109,7 +151,7 @@ if ($liveCode -ne "200") {
     Info "Live host is healthy (HTTP 200)"
 }
 
-$owner = kubectl get ingress -A -o jsonpath="{range .items[?(@.spec.rules[0].host=='$ProdHost')]}{.metadata.namespace}{'/' }{.metadata.name}{'\n'}{end}"
+$owner = Get-LiveOwner -liveHost $ProdHost
 if ([string]::IsNullOrWhiteSpace($owner)) {
     Warn "No ingress owner found for $ProdHost"
 } else {
