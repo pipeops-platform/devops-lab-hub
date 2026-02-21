@@ -32,6 +32,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\switch-prod-slot.ps1 -Target 
 
 The script validates target slot health before cutover and confirms live host ownership after switch.
 
+To avoid `ComparisonError` after feature branch merge/deletion, enforce production Argo apps on `main`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\ensure-argocd-main-target.ps1
+```
+
 ## Deliverables
 
 - Multi-environment deployment strategy

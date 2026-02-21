@@ -10,6 +10,7 @@ Central documentation repository for the DevOps Hybrid Lab.
 
 - Start local lab stack: [scripts/start-lab.ps1](scripts/start-lab.ps1)
 - Stop local lab stack: [scripts/stop-lab.ps1](scripts/stop-lab.ps1)
+- Enforce Argo production apps on `main`: [scripts/ensure-argocd-main-target.ps1](scripts/ensure-argocd-main-target.ps1)
 
 ## Execution Runbooks
 
