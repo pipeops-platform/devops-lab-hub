@@ -10,6 +10,7 @@ Central documentation repository for the DevOps Hybrid Lab.
 
 - Start local lab stack: [scripts/start-lab.ps1](scripts/start-lab.ps1)
 - Stop local lab stack: [scripts/stop-lab.ps1](scripts/stop-lab.ps1)
+- Switch production slot (blue/green): [scripts/switch-prod-slot.ps1](scripts/switch-prod-slot.ps1)
 
 ## Execution Runbooks
 
