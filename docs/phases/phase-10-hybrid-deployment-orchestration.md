@@ -25,7 +25,6 @@ Run the same application release across local (on-prem simulation) and AWS clust
 Use the operational script to switch the live production host between slots:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\switch-prod-slot.ps1 -Status
 powershell -ExecutionPolicy Bypass -File .\scripts\switch-prod-slot.ps1 -Target blue
 powershell -ExecutionPolicy Bypass -File .\scripts\switch-prod-slot.ps1 -Target green
 ```
