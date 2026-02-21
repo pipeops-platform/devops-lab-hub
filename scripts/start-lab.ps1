@@ -113,8 +113,9 @@ Write-Host "- Argo endpoint http://argocd.localtest.me/api/version => $argoStatu
 
 $devStatus = curl.exe -s -o NUL -w "%{http_code}" -H "Host: devops-lab-app-dev.localtest.me" http://127.0.0.1/health
 $stagingStatus = curl.exe -s -o NUL -w "%{http_code}" -H "Host: devops-lab-app-staging.localtest.me" http://127.0.0.1/health
-$prodStatus = curl.exe -s -o NUL -w "%{http_code}" -H "Host: devops-lab-app-prod.localtest.me" http://127.0.0.1/health
-Write-Host "- App health dev=$devStatus staging=$stagingStatus prod=$prodStatus"
+$prodBlueStatus = curl.exe -s -o NUL -w "%{http_code}" -H "Host: devops-lab-app-prod-blue.localtest.me" http://127.0.0.1/health
+$prodGreenStatus = curl.exe -s -o NUL -w "%{http_code}" -H "Host: devops-lab-app-prod-green.localtest.me" http://127.0.0.1/health
+Write-Host "- App health dev=$devStatus staging=$stagingStatus prod-blue=$prodBlueStatus prod-green=$prodGreenStatus"
 
 Step "Final summary"
 Write-Host "Argo URL: http://argocd.localtest.me" -ForegroundColor Green
