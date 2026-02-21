@@ -182,6 +182,7 @@ Steps:
 10.3 Deploy same app version to both clusters
 10.4 Validate service behavior and parity across environments
 10.5 Validate promotion flow (dev -> staging -> prod)
+10.6 Implement and validate Blue/Green strategy for production rollout
 
 Result: functional hybrid architecture with controlled promotion
 

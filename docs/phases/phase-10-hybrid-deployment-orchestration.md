@@ -9,6 +9,7 @@ Run the same application release across local (on-prem simulation) and AWS clust
 - Environment separation
 - Multi-cluster deployment targets
 - Promotion flow validation
+- Blue/Green production rollout strategy
 
 ## Steps
 
@@ -17,12 +18,14 @@ Run the same application release across local (on-prem simulation) and AWS clust
 3. Deploy identical application version to both clusters.
 4. Validate behavior parity and connectivity.
 5. Validate promotion flow (`dev -> staging -> prod`).
+6. Implement and validate Blue/Green switch in production scope.
 
 ## Deliverables
 
 - Multi-environment deployment strategy
 - Hybrid deployment parity validation
+- Documented Blue/Green rollout and switch-back procedure
 
 ## Definition of Done (DoD)
 
-A single versioned release can be promoted predictably across both cluster types with traceable history.
+A single versioned release can be promoted predictably across both cluster types with traceable history, including validated Blue/Green production cutover and rollback.
