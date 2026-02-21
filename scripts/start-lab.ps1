@@ -1,6 +1,7 @@
 param(
     [string]$ClusterName = "devops-lab-local",
-    [switch]$SkipArgoRepair
+    [switch]$SkipArgoRepair,
+    [switch]$SkipTargetRevisionEnforce
 )
 
 $ErrorActionPreference = "Stop"
@@ -105,6 +106,17 @@ if (-not $SkipArgoRepair -and $needsCoreRepair) {
     kubectl -n argocd rollout restart deployment argocd-repo-server | Out-Null
     kubectl -n argocd rollout status deployment argocd-repo-server --timeout=180s | Out-Null
     Info "ArgoCD core repair completed"
+}
+
+if (-not $SkipTargetRevisionEnforce) {
+    Step "Argo targetRevision guard (prod apps => main)"
+    $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $guardScript = Join-Path $scriptDir "ensure-argocd-main-target.ps1"
+    if (Test-Path $guardScript) {
+        powershell -ExecutionPolicy Bypass -File $guardScript
+    } else {
+        Warn "Guard script not found: $guardScript"
+    }
 }
 
 Step "Ingress endpoint checks"

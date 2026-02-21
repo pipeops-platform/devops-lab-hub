@@ -25,11 +25,18 @@ Run the same application release across local (on-prem simulation) and AWS clust
 Use the operational script to switch the live production host between slots:
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\switch-prod-slot.ps1 -Status
 powershell -ExecutionPolicy Bypass -File .\scripts\switch-prod-slot.ps1 -Target blue
 powershell -ExecutionPolicy Bypass -File .\scripts\switch-prod-slot.ps1 -Target green
 ```
 
 The script validates target slot health before cutover and confirms live host ownership after switch.
+
+To avoid `ComparisonError` after feature branch merge/deletion, enforce production Argo apps on `main`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\ensure-argocd-main-target.ps1
+```
 
 ## Deliverables
 
