@@ -4,7 +4,12 @@ Central documentation repository for the DevOps Hybrid Lab.
 
 ## Roadmap
 
-- Macro project steps: [../../steps.txt](../../steps.txt)
+- Macro project steps: [docs/lab/steps.md](docs/lab/steps.md)
+
+## Local Operations
+
+- Start local lab stack: [scripts/start-lab.ps1](scripts/start-lab.ps1)
+- Stop local lab stack: [scripts/stop-lab.ps1](scripts/stop-lab.ps1)
 
 ## Execution Runbooks
 
