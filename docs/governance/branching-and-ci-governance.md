@@ -27,6 +27,12 @@ This policy applies to:
 - Direct push to `main` is blocked.
 - All changes must go through pull requests.
 
+### Environment Branches (Prohibited)
+
+- Do not create long-lived branches per environment (`dev`, `staging`, `prod`).
+- Environment state must be represented in the deploy repository manifests, not in app repository branches.
+- Version traceability per environment must come from deploy PR history + GitOps application status.
+
 ### Working Branches
 
 Use short-lived branches with naming convention:
@@ -43,9 +49,17 @@ Environments are represented by deployment overlays/manifests, not by long-lived
 
 - `dev`
 - `staging`
-- `prod`
+- `prod-blue`
+- `prod-green`
 
 Promotion happens by pull request that updates environment-specific deployment references.
+
+### Environment Version Traceability
+
+- The deploy repository is the source of truth for "which version is running where".
+- Each environment tracks immutable container tags in manifests.
+- Promotion events must be auditable through pull requests in the deploy repository.
+- ArgoCD application status must be used as runtime evidence of reconciled target version.
 
 ## Pull Request Governance
 
@@ -121,7 +135,8 @@ Reusable workflows must be centrally managed and versioned.
 
 - `dev`: automatic after merge to `main` where applicable.
 - `staging`: promoted by PR with explicit validation.
-- `prod`: promoted by PR with stricter approvals and all checks green.
+- `prod-blue` / `prod-green`: promoted by PR with stricter approvals and all checks green.
+- Live production exposure is controlled by blue/green cutover, not by changing app branches.
 
 ## Release and Rollback
 
@@ -161,7 +176,8 @@ Reusable workflows must be centrally managed and versioned.
 - CODEOWNERS active and reviewed.
 - PR approval thresholds configured.
 - Reusable workflows versioned and consumed by reference.
-- Promotion flow (`dev -> staging -> prod`) implemented through PRs.
+- Promotion flow (`dev -> staging -> prod-blue/prod-green`) implemented through PRs.
+- No long-lived environment branches in application repositories.
 
 ## Definition of Done (DoD)
 
