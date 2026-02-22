@@ -1,3 +1,4 @@
+[CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [string]$ClusterName = "devops-lab-local",
     [switch]$SkipArgoRepair,
@@ -18,6 +19,8 @@ function Info([string]$message) {
     Write-Host "[OK] $message" -ForegroundColor Green
 }
 
+$isDryRun = $WhatIfPreference
+
 Step "Pre-checks"
 $requiredCommands = @("docker", "k3d", "kubectl", "curl.exe")
 foreach ($command in $requiredCommands) {
@@ -35,31 +38,53 @@ if ($LASTEXITCODE -ne 0) {
 Info "Docker is running"
 
 Step "Cluster startup"
-k3d cluster start $ClusterName | Out-Null
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to start cluster '$ClusterName'"
+if ($PSCmdlet.ShouldProcess("k3d cluster '$ClusterName'", "start")) {
+    k3d cluster start $ClusterName | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to start cluster '$ClusterName'"
+    }
+    Info "Cluster '$ClusterName' is running"
+} else {
+    Info "[DRY-RUN] Would start cluster '$ClusterName'"
 }
-Info "Cluster '$ClusterName' is running"
 
 Step "kubectl context"
 $context = "k3d-$ClusterName"
-kubectl config use-context $context | Out-Null
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to switch kubectl context to '$context'"
+if ($PSCmdlet.ShouldProcess("kubectl context '$context'", "use-context")) {
+    kubectl config use-context $context | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to switch kubectl context to '$context'"
+    }
+    Info "Using context '$context'"
+} else {
+    Info "[DRY-RUN] Would switch kubectl context to '$context'"
 }
-Info "Using context '$context'"
 
 Step "Node health"
-kubectl get nodes
+if ($isDryRun) {
+    Info "[DRY-RUN] Would run 'kubectl get nodes'"
+} else {
+    kubectl get nodes
+}
 
 Step "ArgoCD core health"
-$argocdPods = kubectl -n argocd get pods -o json | ConvertFrom-Json
-$argocdPods.items | ForEach-Object {
-    Write-Host ("- {0}: ready={1}, phase={2}" -f $_.metadata.name, $_.status.containerStatuses[0].ready, $_.status.phase)
+if ($isDryRun) {
+    Info "[DRY-RUN] Would inspect ArgoCD pods"
+    $argocdPods = @{ items = @() }
+} else {
+    $argocdPods = kubectl -n argocd get pods -o json | ConvertFrom-Json
+    $argocdPods.items | ForEach-Object {
+        Write-Host ("- {0}: ready={1}, phase={2}" -f $_.metadata.name, $_.status.containerStatuses[0].ready, $_.status.phase)
+    }
 }
 
 Step "ArgoCD applications"
-$appsJson = kubectl -n argocd get applications -o json | ConvertFrom-Json
+if ($isDryRun) {
+    Info "[DRY-RUN] Would inspect ArgoCD applications"
+    $appsJson = @{ items = @() }
+} else {
+    $appsJson = kubectl -n argocd get applications -o json | ConvertFrom-Json
+}
 $needsRepair = $false
 $needsCoreRepair = $false
 
@@ -89,23 +114,31 @@ if ($appsJson.items.Count -eq 0) {
 
 if (-not $SkipArgoRepair -and $needsRepair) {
     Step "ArgoCD auto-repair (repo-server + refresh)"
-    kubectl -n argocd rollout restart deployment argocd-repo-server | Out-Null
-    kubectl -n argocd rollout status deployment argocd-repo-server --timeout=180s | Out-Null
-    $appNames = kubectl -n argocd get applications -o jsonpath='{.items[*].metadata.name}'
-    foreach ($appName in $appNames.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries)) {
-        kubectl -n argocd annotate application $appName argocd.argoproj.io/refresh=hard --overwrite | Out-Null
+    if ($PSCmdlet.ShouldProcess("ArgoCD repo-server + applications", "repair and hard refresh")) {
+        kubectl -n argocd rollout restart deployment argocd-repo-server | Out-Null
+        kubectl -n argocd rollout status deployment argocd-repo-server --timeout=180s | Out-Null
+        $appNames = kubectl -n argocd get applications -o jsonpath='{.items[*].metadata.name}'
+        foreach ($appName in $appNames.Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries)) {
+            kubectl -n argocd annotate application $appName argocd.argoproj.io/refresh=hard --overwrite | Out-Null
+        }
+        Start-Sleep -Seconds 8
+        Info "ArgoCD repair completed"
+    } else {
+        Info "[DRY-RUN] Would restart repo-server and hard-refresh applications"
     }
-    Start-Sleep -Seconds 8
-    Info "ArgoCD repair completed"
 }
 
 if (-not $SkipArgoRepair -and $needsCoreRepair) {
     Step "ArgoCD core auto-repair"
-    kubectl -n argocd rollout restart deployment argocd-applicationset-controller | Out-Null
-    kubectl -n argocd rollout status deployment argocd-applicationset-controller --timeout=180s | Out-Null
-    kubectl -n argocd rollout restart deployment argocd-repo-server | Out-Null
-    kubectl -n argocd rollout status deployment argocd-repo-server --timeout=180s | Out-Null
-    Info "ArgoCD core repair completed"
+    if ($PSCmdlet.ShouldProcess("ArgoCD core deployments", "restart applicationset-controller and repo-server")) {
+        kubectl -n argocd rollout restart deployment argocd-applicationset-controller | Out-Null
+        kubectl -n argocd rollout status deployment argocd-applicationset-controller --timeout=180s | Out-Null
+        kubectl -n argocd rollout restart deployment argocd-repo-server | Out-Null
+        kubectl -n argocd rollout status deployment argocd-repo-server --timeout=180s | Out-Null
+        Info "ArgoCD core repair completed"
+    } else {
+        Info "[DRY-RUN] Would restart applicationset-controller and repo-server"
+    }
 }
 
 if (-not $SkipTargetRevisionEnforce) {
@@ -113,22 +146,31 @@ if (-not $SkipTargetRevisionEnforce) {
     $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
     $guardScript = Join-Path $scriptDir "ensure-argocd-main-target.ps1"
     if (Test-Path $guardScript) {
-        powershell -ExecutionPolicy Bypass -File $guardScript
+        if ($PSCmdlet.ShouldProcess($guardScript, "enforce ArgoCD production targetRevision=main")) {
+            powershell -ExecutionPolicy Bypass -File $guardScript
+        } else {
+            Info "[DRY-RUN] Would run guard script: $guardScript"
+        }
     } else {
         Warn "Guard script not found: $guardScript"
     }
 }
 
 Step "Ingress endpoint checks"
-$argoStatus = curl.exe -s -o NUL -w "%{http_code}" -H "Host: argocd.localtest.me" http://127.0.0.1/api/version
-Write-Host "- Argo endpoint http://argocd.localtest.me/api/version => $argoStatus"
+if ($isDryRun) {
+    Info "[DRY-RUN] Would check ingress endpoints for Argo and app environments"
+} else {
+    $argoStatus = curl.exe -s -o NUL -w "%{http_code}" -H "Host: argocd.localtest.me" http://127.0.0.1/api/version
+    Write-Host "- Argo endpoint http://argocd.localtest.me/api/version => $argoStatus"
 
-$devStatus = curl.exe -s -o NUL -w "%{http_code}" -H "Host: devops-lab-app-dev.localtest.me" http://127.0.0.1/health
-$stagingStatus = curl.exe -s -o NUL -w "%{http_code}" -H "Host: devops-lab-app-staging.localtest.me" http://127.0.0.1/health
-$prodBlueStatus = curl.exe -s -o NUL -w "%{http_code}" -H "Host: devops-lab-app-prod-blue.localtest.me" http://127.0.0.1/health
-$prodGreenStatus = curl.exe -s -o NUL -w "%{http_code}" -H "Host: devops-lab-app-prod-green.localtest.me" http://127.0.0.1/health
-Write-Host "- App health dev=$devStatus staging=$stagingStatus prod-blue=$prodBlueStatus prod-green=$prodGreenStatus"
+    $devStatus = curl.exe -s -o NUL -w "%{http_code}" -H "Host: devops-lab-app-dev.localtest.me" http://127.0.0.1/health
+    $stagingStatus = curl.exe -s -o NUL -w "%{http_code}" -H "Host: devops-lab-app-staging.localtest.me" http://127.0.0.1/health
+    $prodBlueStatus = curl.exe -s -o NUL -w "%{http_code}" -H "Host: devops-lab-app-prod-blue.localtest.me" http://127.0.0.1/health
+    $prodGreenStatus = curl.exe -s -o NUL -w "%{http_code}" -H "Host: devops-lab-app-prod-green.localtest.me" http://127.0.0.1/health
+    Write-Host "- App health dev=$devStatus staging=$stagingStatus prod-blue=$prodBlueStatus prod-green=$prodGreenStatus"
+}
 
 Step "Final summary"
 Write-Host "Argo URL: http://argocd.localtest.me" -ForegroundColor Green
 Write-Host "Tip: run '.\\scripts\\start-lab.ps1 -SkipArgoRepair' for a faster boot when everything is already healthy."
+Write-Host "Tip: run '.\\scripts\\start-lab.ps1 -WhatIf' to validate the startup flow without applying changes."
